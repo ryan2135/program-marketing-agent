@@ -1,27 +1,35 @@
 import requests
 from pathlib import Path
 
-corpus_name = input("Corpus file name (without -corpus.txt): ")
 
-corpus_path = Path(f"outputs/{corpus_name}-corpus.txt")
-summary_path = Path(f"outputs/{corpus_name}-summary.txt")
+MODEL = "hf.co/ggml-org/gemma-4-12B-it-GGUF:Q4_K_M"
 
-corpus = corpus_path.read_text(encoding="utf-8")
+def clean_llm_output(text):
+    text = text.replace("<|channel>thought", "")
+    text = text.replace("<channel|>", "")
+    text = text.replace("```json", "")
+    text = text.replace("```", "")
+    return text.strip()
 
-sections = corpus.split("=" * 80)
+def summarize_corpus(corpus_name):
+    corpus_path = Path(f"outputs/{corpus_name}-corpus.txt")
+    summary_path = Path(f"outputs/{corpus_name}-summary.txt")
 
-with open(summary_path, "w", encoding="utf-8") as out:
+    corpus = corpus_path.read_text(encoding="utf-8")
+    sections = corpus.split("=" * 80)
 
-    for i, section in enumerate(sections):
+    with open(summary_path, "w", encoding="utf-8") as out:
 
-        section = section.strip()
+        for i, section in enumerate(sections):
 
-        if len(section) < 200:
-            continue
+            section = section.strip()
 
-        print(f"Summarizing section {i}")
+            if len(section) < 200:
+                continue
 
-        prompt = f"""
+            print(f"Summarizing section {i}")
+
+            prompt = f"""
 Summarize this page in 5 bullet points for a university recruiting application.
 
 PAGE:
@@ -29,22 +37,26 @@ PAGE:
 {section[:6000]}
 """
 
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "hf.co/ggml-org/gemma-4-12B-it-GGUF:Q4_K_M",
-                "prompt": prompt,
-                "stream": False,
-            },
-        )
+            response = requests.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": MODEL,
+                    "prompt": prompt,
+                    "stream": False,
+                },
+            )
 
-        data = response.json()
+            data = response.json()
 
-        out.write("\n")
-        out.write("#" * 60)
-        out.write("\n")
+            out.write("\n")
+            out.write("#" * 60)
+            out.write("\n")
+            out.write(clean_llm_output(data.get("response", "ERROR")))
+            out.write("\n\n")
 
-        out.write(data.get("response", "ERROR"))
-        out.write("\n\n")
+    print(f"Saved summaries to {summary_path}")
 
-print(f"Saved summaries to {summary_path}")
+
+if __name__ == "__main__":
+    corpus_name = input("Corpus file name (without -corpus.txt): ")
+    summarize_corpus(corpus_name)

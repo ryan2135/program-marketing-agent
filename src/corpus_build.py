@@ -3,84 +3,93 @@ from bs4 import BeautifulSoup
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
-program_url = input("Program URL: ")
-output_name = input("Corpus file name (without extension): ")
 
-corpus_path = Path(f"outputs/{output_name}-corpus.txt")
+def extract_visible_text(html):
+    soup = BeautifulSoup(html, "html.parser")
 
-response = requests.get(program_url)
+    for tag in soup(["script", "style", "nav", "footer", "header"]):
+        tag.decompose()
 
-if response.status_code != 200:
-    print(f"Error: HTTP {response.status_code}")
-    exit(1)
+    text = soup.get_text(separator="\n")
 
-soup = BeautifulSoup(response.text, "html.parser")
+    lines = []
 
-links = []
+    for line in text.splitlines():
+        line = line.strip()
 
-for a_tag in soup.find_all("a", href=True):
-    href = a_tag["href"]
-    full_url = urljoin(program_url, href)
+        if line:
+            lines.append(line)
 
-    if "pacificu.edu" in urlparse(full_url).netloc:
-        links.append(full_url)
+    return "\n".join(lines)
 
-unique_links = sorted(set(links))
 
-useful_keywords = [
-    "social-work",
-    "magazine",
-    "accreditation",
-    "catalog",
-    "claire-argow",
-]
+def build_corpus(program_url, output_name):
+    corpus_path = Path(f"outputs/{output_name}-corpus.txt")
 
-filtered_links = []
+    response = requests.get(program_url)
 
-for link in unique_links:
-    if any(keyword in link for keyword in useful_keywords):
-        filtered_links.append(link)
+    if response.status_code != 200:
+        print(f"Error: HTTP {response.status_code}")
+        return
 
-with open(corpus_path, "w", encoding="utf-8") as corpus:
+    soup = BeautifulSoup(response.text, "html.parser")
 
-    for link in filtered_links:
+    links = []
 
-        print(f"Processing: {link}")
+    for a_tag in soup.find_all("a", href=True):
+        href = a_tag["href"]
+        full_url = urljoin(program_url, href)
 
-        try:
-            response = requests.get(link, timeout=10)
+        if "pacificu.edu" in urlparse(full_url).netloc:
+            links.append(full_url)
 
-            if response.status_code != 200:
-                continue
+    unique_links = sorted(set(links))
 
-            soup = BeautifulSoup(response.text, "html.parser")
+    useful_keywords = [
+        output_name,
+        "magazine",
+        "accreditation",
+        "catalog",
+    ]
 
-            for tag in soup(["script", "style", "nav", "footer", "header"]):
-                tag.decompose()
+    filtered_links = []
 
-            text = soup.get_text(separator="\n")
+    for link in unique_links:
+        if any(keyword in link for keyword in useful_keywords):
+            filtered_links.append(link)
 
-            lines = []
+    with open(corpus_path, "w", encoding="utf-8") as corpus:
 
-            for line in text.splitlines():
-                line = line.strip()
+        for link in filtered_links:
 
-                if line:
-                    lines.append(line)
+            print(f"Processing: {link}")
 
-            clean_text = "\n".join(lines)
+            try:
+                response = requests.get(link, timeout=10)
 
-            corpus.write("\n")
-            corpus.write("=" * 80)
-            corpus.write("\n")
-            corpus.write(link)
-            corpus.write("\n")
-            corpus.write("=" * 80)
-            corpus.write("\n\n")
-            corpus.write(clean_text)
-            corpus.write("\n\n")
+                if response.status_code != 200:
+                    continue
 
-        except Exception as e:
-            print(f"Error: {e}")
+                clean_text = extract_visible_text(response.text)
 
-print(f"\nSaved corpus to {corpus_path}")
+                corpus.write("\n")
+                corpus.write("=" * 80)
+                corpus.write("\n")
+                corpus.write(link)
+                corpus.write("\n")
+                corpus.write("=" * 80)
+                corpus.write("\n\n")
+                corpus.write(clean_text)
+                corpus.write("\n\n")
+
+            except Exception as e:
+                print(f"Error: {e}")
+
+    print(f"\nSaved corpus to {corpus_path}")
+
+
+if __name__ == "__main__":
+    program_url = input("Program URL: ")
+    output_name = input("Corpus file name (without extension): ")
+
+    build_corpus(program_url, output_name)
