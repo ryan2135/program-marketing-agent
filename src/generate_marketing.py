@@ -12,14 +12,13 @@ def clean_llm_output(text):
     return text.strip()
 
 
-input_name = input("Program name: ")
+def generate_marketing(program_name):
+    summary_path = Path(f"outputs/{program_name}-summary.txt")
+    output_path = Path(f"outputs/{program_name}-marketing.json")
 
-summary_path = Path(f"outputs/{input_name}-summary.txt")
-output_path = Path(f"outputs/{input_name}-marketing.json")
+    summary = summary_path.read_text(encoding="utf-8")
 
-summary = summary_path.read_text(encoding="utf-8")
-
-prompt = f"""
+    prompt = f"""
 Use the source material below to create recruiting content for a mobile-friendly academic program app.
 
 IMPORTANT:
@@ -48,24 +47,29 @@ SOURCE MATERIAL:
 {summary}
 """
 
-response = requests.post(
-    "http://localhost:11434/api/generate",
-    json={
-        "model": MODEL,
-        "prompt": prompt,
-        "stream": False,
-    },
-)
+    response = requests.post(
+        "http://localhost:11434/api/generate",
+        json={
+            "model": MODEL,
+            "prompt": prompt,
+            "stream": False,
+        },
+    )
 
-data = response.json()
+    data = response.json()
 
-generated_text = clean_llm_output(
-    data.get("response", "")
-)
+    generated_text = clean_llm_output(
+        data.get("response", "")
+    )
 
-output_path.write_text(
-    generated_text,
-    encoding="utf-8"
-)
+    output_path.write_text(
+        generated_text,
+        encoding="utf-8"
+    )
 
-print(f"Saved marketing JSON to {output_path}")
+    print(f"Saved marketing JSON to {output_path}")
+
+
+if __name__ == "__main__":
+    program_name = input("Program name: ")
+    generate_marketing(program_name)
