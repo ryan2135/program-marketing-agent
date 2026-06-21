@@ -12,14 +12,13 @@ def clean_llm_output(text):
     return text.strip()
 
 
-program_name = input("Program name: ")
+def extract_stories(program_name):
+    summary_path = Path(f"outputs/{program_name}-summary.txt")
+    stories_path = Path(f"outputs/{program_name}-stories.json")
 
-summary_path = Path(f"outputs/{program_name}-summary.txt")
-stories_path = Path(f"outputs/{program_name}-stories.json")
+    summary = summary_path.read_text(encoding="utf-8")
 
-summary = summary_path.read_text(encoding="utf-8")
-
-prompt = f"""
+    prompt = f"""
 Use the source material below to extract content for two app sections:
 
 1. Featured Student Stories
@@ -53,7 +52,7 @@ Rules for featured_stories:
 - Prefer real named students, alumni, or recent graduates.
 - Focus on human journeys, accomplishments, challenges, and outcomes.
 - Do not invent names, employers, projects, or outcomes.
-- Return fewer than 5 if the source does not support 5.
+- Return fewer than 3 if the source does not support 3.
 
 Rules for showcase_cards:
 - Extract up to 6 cards.
@@ -69,19 +68,24 @@ SOURCE MATERIAL:
 {summary}
 """
 
-response = requests.post(
-    "http://localhost:11434/api/generate",
-    json={
-        "model": MODEL,
-        "prompt": prompt,
-        "stream": False,
-    },
-)
+    response = requests.post(
+        "http://localhost:11434/api/generate",
+        json={
+            "model": MODEL,
+            "prompt": prompt,
+            "stream": False,
+        },
+    )
 
-data = response.json()
+    data = response.json()
 
-generated_text = clean_llm_output(data.get("response", ""))
+    generated_text = clean_llm_output(data.get("response", ""))
 
-stories_path.write_text(generated_text, encoding="utf-8")
+    stories_path.write_text(generated_text, encoding="utf-8")
 
-print(f"Saved stories to {stories_path}")
+    print(f"Saved stories to {stories_path}")
+
+
+if __name__ == "__main__":
+    program_name = input("Program name: ")
+    extract_stories(program_name)

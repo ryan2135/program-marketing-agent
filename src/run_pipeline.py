@@ -3,13 +3,14 @@ import json
 from corpus_build import build_corpus
 from corpus_summarize import summarize_corpus
 from generate_marketing import generate_marketing
+from extract_stories import extract_stories
+from assemble_program_content import assemble_program_content
 
 
 with open("inputs/programs.json", "r", encoding="utf-8") as f:
     programs = json.load(f)
 
 for program in programs:
-
     name = program["name"]
     url = program["url"]
 
@@ -26,5 +27,11 @@ for program in programs:
 
     print(f"\n=== Generating marketing JSON for {name} ===")
     generate_marketing(name)
+
+    print(f"\n=== Extracting stories for {name} ===")
+    extract_stories(name)
+
+    print(f"\n=== Assembling app content for {name} ===")
+    assemble_program_content(name)
 
     print(f"\n=== Finished {name} ===\n")
